@@ -9,6 +9,7 @@ from torchvision.utils import make_grid
 
 from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
+from ldm.models.diffusion.plms import PLMSSampler
 
 
 def load_model_from_config(config, ckpt, verbose=False):
@@ -52,6 +53,12 @@ if __name__ == "__main__":
         type=int,
         default=200,
         help="number of ddim sampling steps",
+    )
+
+    parser.add_argument(
+        "--plms",
+        action='store_true',
+        help="use plms sampling",
     )
 
     parser.add_argument(
@@ -102,7 +109,11 @@ if __name__ == "__main__":
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model = model.to(device)
-    sampler = DDIMSampler(model)
+
+    if opt.plms:
+        sampler = PLMSSampler(model)
+    else:
+        sampler = DDIMSampler(model)
 
     os.makedirs(opt.outdir, exist_ok=True)
     outpath = opt.outdir
@@ -118,7 +129,7 @@ if __name__ == "__main__":
     with torch.no_grad():
         with model.ema_scope():
             uc = None
-            if opt.scale > 0:
+            if opt.scale != 1.0:
                 uc = model.get_learned_conditioning(opt.n_samples * [""])
             for n in trange(opt.n_iter, desc="Sampling"):
                 c = model.get_learned_conditioning(opt.n_samples * [prompt])
